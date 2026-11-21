@@ -4,6 +4,7 @@ import { KeyMissingBanner } from "./components/KeyMissingBanner";
 import { Sidebar, NAV_ITEMS } from "./components/Sidebar";
 import { ErrorBanner } from "./components/PageState";
 import { BriefPage } from "./pages/BriefPage";
+import { ChampPage } from "./pages/ChampPage";
 import { IdeasPage } from "./pages/IdeasPage";
 import { MapPage } from "./pages/MapPage";
 import { SprintPage } from "./pages/SprintPage";
@@ -90,6 +91,8 @@ export default function App() {
             onSelectBrief={setActiveBriefId}
             onNavigate={handleSelectPage}
           />
+        ) : activePage === "champ" ? (
+          <ChampPage geminiConfigured={Boolean(health?.gemini_configured)} />
         ) : activePage === "map" ? (
           <MapPage />
         ) : activePage === "sprint" ? (
