@@ -16,18 +16,36 @@ BACKEND_DIR = ROOT / "backend"
 FRONTEND_DIR = ROOT / "frontend"
 
 
-def find_backend_python() -> str:
-    """Prefer backend/.venv Python if present; fall back to current sys.executable."""
-    candidates = [
-        BACKEND_DIR / ".venv" / "Scripts" / "python.exe",
-        BACKEND_DIR / ".venv" / "bin" / "python",
-        ROOT / ".venv" / "Scripts" / "python.exe",
-        ROOT / ".venv" / "bin" / "python",
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return str(candidate)
-    return sys.executable
+def _venv_python(venv_dir: Path) -> Path:
+    return venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+
+
+def _can_import_uvicorn(python_exe: str) -> bool:
+    res = subprocess.run(
+        [python_exe, "-c", "import uvicorn, fastapi"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return res.returncode == 0
+
+
+def ensure_backend_python() -> str:
+    """Use backend/.venv if present, or current Python if ready, else bootstrap backend/.venv."""
+    venv_dir = BACKEND_DIR / ".venv"
+    venv_py = _venv_python(venv_dir)
+    if venv_py.exists() and _can_import_uvicorn(str(venv_py)):
+        return str(venv_py)
+
+    if _can_import_uvicorn(sys.executable):
+        return sys.executable
+
+    print("[run.py] Bootstrapping backend/.venv and installing pinned Python dependencies...")
+    subprocess.run([sys.executable, "-m", "venv", str(venv_dir)], check=True)
+    subprocess.run(
+        [str(venv_py), "-m", "pip", "install", "-r", str(BACKEND_DIR / "requirements.txt")],
+        check=True,
+    )
+    return str(venv_py)
 
 
 def find_npm() -> str:
@@ -54,14 +72,12 @@ def terminate_process(proc: subprocess.Popen | None) -> None:
 
 
 def main() -> int:
-    python_exe = find_backend_python()
+    python_exe = ensure_backend_python()
     npm_exe = find_npm()
 
-    # Ensure runtime dirs exist
     (ROOT / "workspace_out").mkdir(parents=True, exist_ok=True)
     (BACKEND_DIR / "data").mkdir(parents=True, exist_ok=True)
 
-    # Check if frontend node_modules exists
     if not (FRONTEND_DIR / "node_modules").exists():
         print("[run.py] Installing frontend dependencies (npm install)...")
         subprocess.run([npm_exe, "install"], cwd=str(FRONTEND_DIR), check=True)
@@ -88,8 +104,8 @@ def main() -> int:
         "--strictPort",
     ]
 
-    print(f"[run.py] Starting backend on http://localhost:8000 using {python_exe}")
-    print(f"[run.py] Starting frontend on http://localhost:5173 using {npm_exe}")
+    print(f"[run.py] Backend API:  http://localhost:8000  (docs: http://localhost:8000/docs)")
+    print(f"[run.py] Frontend UI:  http://localhost:5173")
     print("[run.py] Press Ctrl+C to stop both servers.\n")
 
     backend_proc: subprocess.Popen | None = None
