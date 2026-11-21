@@ -7,8 +7,9 @@ import { BriefPage } from "./pages/BriefPage";
 import { ChampPage } from "./pages/ChampPage";
 import { IdeasPage } from "./pages/IdeasPage";
 import { MapPage } from "./pages/MapPage";
-import { SprintPage } from "./pages/SprintPage";
 import { ScaffoldPage } from "./pages/ScaffoldPage";
+import { SprintPage } from "./pages/SprintPage";
+import { SubmissionPage } from "./pages/SubmissionPage";
 import type { HealthResponse, PageId } from "./types";
 
 function getInitialPage(): PageId {
@@ -97,23 +98,13 @@ export default function App() {
           <MapPage />
         ) : activePage === "sprint" ? (
           <SprintPage />
-        ) : activePage === "scaffold" ? (
-          <ScaffoldPage />
+        ) : activePage === "submission" ? (
+          <SubmissionPage
+            geminiConfigured={Boolean(health?.gemini_configured)}
+            onNavigate={handleSelectPage}
+          />
         ) : (
-          <section aria-labelledby="page-heading" className="space-y-6">
-            <header>
-              <h1 id="page-heading" className="text-2xl sm:text-3xl font-bold text-[#EEF4FC]">
-                {currentMeta.label}
-              </h1>
-              <p className="text-base text-[#A8B9D4] mt-1">{currentMeta.hint}</p>
-            </header>
-
-            <div className="rounded-xl border border-[#263452] bg-[#121A2B] p-6">
-              <p className="text-base text-[#CBD7EA]">
-                Mission Control shell online. Module ready for phase implementation.
-              </p>
-            </div>
-          </section>
+          <ScaffoldPage />
         )}
       </main>
     </div>
