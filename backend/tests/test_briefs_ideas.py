@@ -1,0 +1,157 @@
+from __future__ import annotations
+
+import json
+from fastapi.testclient import TestClient
+
+from app.services import gemini_service
+
+
+def test_brief_analyze_fails_gracefully_without_key(client: TestClient):
+    res = client.post("/api/briefs/analyze", json={"text": "Build a climate app in 24 hours."})
+    assert res.status_code == 503
+    assert "Add your Gemini key to .env" in res.json()["detail"]
+
+
+def test_brief_retry_once_and_empty_criteria_default_rubric(client: TestClient, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-fake-key-for-mock")
+    calls = {"count": 0}
+
+    valid_brief_json = json.dumps(
+        {
+            "title": "Campus Climate Hack",
+            "theme": "Sustainability",
+            "summary": "Build tools that lower campus energy usage.",
+            "deadlines": [{"label": "Final Submission", "iso": "2026-12-10T18:00:00Z"}],
+            "prizes": ["$2,000 Grand Prize"],
+            "sponsor_tech": ["OpenFreeMap", "FastAPI"],
+            "rules": ["Teams of 1-4 students", "All code written during the event"],
+            "judging_criteria": [],
+            "source": "pasted text",
+        }
+    )
+
+    def fake_call(_client, _model, _prompt, _schema, _sys):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            return "{not valid json"
+        return valid_brief_json
+
+    monkeypatch.setattr(gemini_service, "get_gemini_client", lambda: (object(), "gemini-4-hydrogen"))
+    monkeypatch.setattr(gemini_service, "_call_json_model", fake_call)
+
+    res = client.post(
+        "/api/briefs/analyze",
+        json={"text": "Campus Climate Hack: Build tools to lower campus energy use."},
+    )
+    assert res.status_code == 200
+    assert calls["count"] == 2  # Verified retry-once behavior!
+
+    data = res.json()
+    assert data["title"] == "Campus Climate Hack"
+    # Never invent criteria: judging_criteria MUST remain empty []
+    assert data["judging_criteria"] == []
+    assert data["rubric_label"] == "Default rubric (not from organiser)"
+    assert [c["name"] for c in data["effective_rubric"]] == [
+        "Innovation",
+        "Technical depth",
+        "Impact",
+        "Design/UX",
+        "Presentation",
+    ]
+
+    # GET /api/briefs/{id} returns same persisted brief
+    fetched = client.get(f"/api/briefs/{data['id']}")
+    assert fetched.status_code == 200
+    assert fetched.json()["title"] == "Campus Climate Hack"
+
+
+def test_ideas_generate_three_and_lock(client: TestClient, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-fake-key-for-mock")
+
+    brief_json = json.dumps(
+        {
+            "title": "AI Health Hack",
+            "theme": "Healthcare",
+            "summary": "Assistive tools for clinics.",
+            "deadlines": [],
+            "prizes": ["$1000"],
+            "sponsor_tech": ["Gemini API"],
+            "rules": ["Must use Gemini API"],
+            "judging_criteria": [
+                {"name": "Clinical Utility", "weight": 50, "description": "Helps patients."},
+                {"name": "Execution", "weight": 50, "description": "Working prototype."},
+            ],
+            "source": "pasted text",
+        }
+    )
+
+    ideas_json = json.dumps(
+        {
+            "ideas": [
+                {
+                    "title": "TriageBuddy",
+                    "one_liner": "Multilingual intake helper",
+                    "problem": "Long clinic intake delays.",
+                    "solution": "Voice-to-structured form using Gemini API.",
+                    "tech": ["FastAPI", "React", "Gemini API"],
+                    "build_hours": 14,
+                    "risks": ["Medical disclaimer needed"],
+                    "scores": [
+                        {"criterion": "Clinical Utility", "score": 5, "reason": "Direct time saver."},
+                        {"criterion": "Execution", "score": 4, "reason": "Clean API pipeline."},
+                    ],
+                },
+                {
+                    "title": "MedPlain",
+                    "one_liner": "Discharge notes in plain English",
+                    "problem": "Patients misunderstand discharge paperwork.",
+                    "solution": "Gemini API simplifies instructions into checklists.",
+                    "tech": ["FastAPI", "React", "Gemini API"],
+                    "build_hours": 10,
+                    "risks": ["Avoid diagnostic claims"],
+                    "scores": [
+                        {"criterion": "Clinical Utility", "score": 4, "reason": "High patient value."},
+                        {"criterion": "Execution", "score": 5, "reason": "Very fast to ship."},
+                    ],
+                },
+                {
+                    "title": "ShiftSync",
+                    "one_liner": "Nurse handoff summary assistant",
+                    "problem": "Shift handoffs miss key notes.",
+                    "solution": "Structured handoff cards generated by Gemini API.",
+                    "tech": ["FastAPI", "React", "Gemini API"],
+                    "build_hours": 16,
+                    "risks": ["Data privacy mock inputs"],
+                    "scores": [
+                        {"criterion": "Clinical Utility", "score": 4, "reason": "Clear workflow fit."},
+                        {"criterion": "Execution", "score": 4, "reason": "Moderate scope."},
+                    ],
+                },
+            ]
+        }
+    )
+
+    responses = iter([brief_json, ideas_json])
+    monkeypatch.setattr(gemini_service, "get_gemini_client", lambda: (object(), "gemini-4-hydrogen"))
+    monkeypatch.setattr(gemini_service, "_call_json_model", lambda *_a, **_kw: next(responses))
+
+    brief = client.post("/api/briefs/analyze", json={"text": "AI Health Hack"}).json()
+    assert brief["rubric_label"] == "Organiser judging criteria"
+
+    gen = client.post("/api/ideas/generate", json={"brief_id": brief["id"]})
+    assert gen.status_code == 200
+    ideas = gen.json()
+    assert len(ideas) == 3
+
+    # Lock idea #0, then lock idea #1 and confirm only #1 is locked
+    lock0 = client.post(f"/api/ideas/{ideas[0]['id']}/lock")
+    assert lock0.status_code == 200
+    assert lock0.json()["is_locked"] is True
+
+    lock1 = client.post(f"/api/ideas/{ideas[1]['id']}/lock")
+    assert lock1.status_code == 200
+    assert lock1.json()["is_locked"] is True
+
+    all_ideas = client.get(f"/api/ideas?brief_id={brief['id']}").json()
+    locked_ids = [i["id"] for i in all_ideas if i["is_locked"]]
+    assert locked_ids == [ideas[1]["id"]]

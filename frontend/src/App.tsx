@@ -3,6 +3,8 @@ import { api } from "./api";
 import { KeyMissingBanner } from "./components/KeyMissingBanner";
 import { Sidebar, NAV_ITEMS } from "./components/Sidebar";
 import { ErrorBanner } from "./components/PageState";
+import { BriefPage } from "./pages/BriefPage";
+import { IdeasPage } from "./pages/IdeasPage";
 import { MapPage } from "./pages/MapPage";
 import { SprintPage } from "./pages/SprintPage";
 import { ScaffoldPage } from "./pages/ScaffoldPage";
@@ -18,6 +20,7 @@ function getInitialPage(): PageId {
 
 export default function App() {
   const [activePage, setActivePage] = useState<PageId>(getInitialPage);
+  const [activeBriefId, setActiveBriefId] = useState<number | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthError, setHealthError] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -70,7 +73,24 @@ export default function App() {
           </div>
         ) : null}
 
-        {activePage === "map" ? (
+        {activePage === "brief" ? (
+          <BriefPage
+            geminiConfigured={Boolean(health?.gemini_configured)}
+            activeBriefId={activeBriefId}
+            onSelectBrief={setActiveBriefId}
+            onGoToIdeas={(briefId) => {
+              setActiveBriefId(briefId);
+              handleSelectPage("ideas");
+            }}
+          />
+        ) : activePage === "ideas" ? (
+          <IdeasPage
+            geminiConfigured={Boolean(health?.gemini_configured)}
+            activeBriefId={activeBriefId}
+            onSelectBrief={setActiveBriefId}
+            onNavigate={handleSelectPage}
+          />
+        ) : activePage === "map" ? (
           <MapPage />
         ) : activePage === "sprint" ? (
           <SprintPage />
