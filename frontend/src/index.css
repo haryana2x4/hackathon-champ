@@ -51,3 +51,8 @@ code, pre, .font-mono {
   font-size: 18px !important;
   padding: 2px 6px !important;
 }
+
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib a {
+  color: #0f172a !important;
+}
