@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import health
+from app.routers import hackathons, health, scaffold, sprint
 
 
 @asynccontextmanager
@@ -31,6 +31,9 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(health.router)
+    app.include_router(hackathons.router)
+    app.include_router(sprint.router)
+    app.include_router(scaffold.router)
     return app
 
 
