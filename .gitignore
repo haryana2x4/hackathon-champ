@@ -1,0 +1,32 @@
+# Secrets
+.env
+
+# Agent & scaffold generated outputs
+workspace_out/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# SQLite runtime databases
+backend/data/*.db
+backend/data/*.db-journal
+backend/data/*.db-wal
+backend/data/*.db-shm
+
+# Frontend / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
