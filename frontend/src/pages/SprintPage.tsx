@@ -65,7 +65,8 @@ export function SprintPage() {
   }, []);
 
   const setQuickHours = (hoursAhead: number) => {
-    const target = new Date(Date.now() + hoursAhead * 3600 * 1000);
+    const roundedNow = Math.ceil(Date.now() / 60000) * 60000;
+    const target = new Date(roundedNow + hoursAhead * 3600 * 1000);
     setDeadlineLocal(toLocalDateTimeInputValue(target));
   };
 
