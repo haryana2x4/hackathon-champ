@@ -1,6 +1,6 @@
 # Architectural & Product Decisions
 
-Every autonomous decision made while building **Hackathon Champ** is logged here.
+Key architectural and product decisions for **Hackathon Champ**.
 
 ## D1 — Default Gemini Model (`gemini-4-hydrogen`)
 - **Decision:** Default `GEMINI_MODEL` to `gemini-4-hydrogen` in `.env.example` and `backend/app/config.py`.

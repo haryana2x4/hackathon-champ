@@ -46,8 +46,8 @@ cd frontend && npm run build
 
 ## Documentation
 
-- [docs/research-notes.md](docs/research-notes.md) — Phase 0 source review, licences, and Gemini API doc verification
-- [docs/decisions.md](docs/decisions.md) — Autonomous architectural and product decisions
+- [docs/research-notes.md](docs/research-notes.md) — Architecture research, licences, and API references
+- [docs/decisions.md](docs/decisions.md) — Architectural and product decisions
 - [docs/next-steps.md](docs/next-steps.md) — Deferred ideas kept out of v1 scope
 
 ## Open-Source Credits & Attribution
